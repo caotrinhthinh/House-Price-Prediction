@@ -66,6 +66,9 @@ def predict():
             logger.warning(f"Invalid type for {f}: {type(val)}")
             return jsonify({"error": f"Invalid type for {f}. Expected number."}), 400
 
+    if not (1 <= data.get("OverallQual", 5) <= 10):
+        return jsonify({"error": "OverallQual must be 1-10"}), 400
+
     # 2. Fill default 0 for all 87 features
     full_data = {f: 0 for f in features}
 
@@ -91,19 +94,21 @@ def predict():
 
     # 4. Feature Engineering (must match what model expects)
     yr_sold = REASONABLE_DEFAULTS["YrSold"]
+    year_built = data.get('YearBuilt', 2000)
+    year_remod = data.get('YearRemodAdd', year_built)
 
     if 'TotalSF' in full_data:
         full_data['TotalSF'] = data.get('TotalBsmtSF', 0) + data.get('1stFlrSF', 0) + data.get('2ndFlrSF', 0)
     if 'TotalBath' in full_data:
         full_data['TotalBath'] = data.get('FullBath', 0) 
     if 'HouseAge' in full_data:
-        full_data['HouseAge'] = yr_sold - data.get('YearBuilt', 0)
+        full_data['HouseAge'] = yr_sold - year_built
     if 'RemodelAge' in full_data:
-        full_data['RemodelAge'] = yr_sold - data.get('YearRemodAdd', 0)
+        full_data['RemodelAge'] = yr_sold - year_remod
     if 'WasRemodeled' in full_data:
-        full_data['WasRemodeled'] = 1 if data.get('YearRemodAdd') != data.get('YearBuilt') else 0
+        full_data['WasRemodeled'] = 1 if (year_remod and year_built and year_remod != year_built) else 0
     if 'IsNew' in full_data:
-        full_data['IsNew'] = 1 if (yr_sold - data.get('YearBuilt', 0)) <= 1 else 0
+        full_data['IsNew'] = 1 if (yr_sold - year_built) <= 1 else 0
     if 'HasGarage' in full_data:
         full_data['HasGarage'] = 1 if data.get('GarageArea', 0) > 0 else 0
     if 'HasBasement' in full_data:
