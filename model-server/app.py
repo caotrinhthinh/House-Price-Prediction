@@ -37,6 +37,12 @@ def health():
     return jsonify({"status": "UP", "model": "XGBoost + LightGBM ensemble"})
 
 
+EXPECTED_FRONTEND_INPUTS = [
+    "OverallQual", "YearBuilt", "YearRemodAdd", "TotalBsmtSF", 
+    "1stFlrSF", "2ndFlrSF", "GrLivArea", "FullBath", 
+    "TotRmsAbvGrd", "GarageCars", "GarageArea"
+]
+
 @app.post("/predict")
 def predict():
     data = request.get_json()
@@ -44,30 +50,74 @@ def predict():
         logger.warning("Received empty or invalid JSON request body")
         return jsonify({"error": "Request body must be JSON"}), 400
 
-    # 3. Validate input
-    missing_features = [f for f in features if f not in data]
-    if missing_features:
-        logger.warning(f"Request missing {len(missing_features)} features")
+    # 1. Validate the 11 frontend inputs
+    missing_inputs = [f for f in EXPECTED_FRONTEND_INPUTS if f not in data]
+    if missing_inputs:
+        logger.warning(f"Request missing {len(missing_inputs)} inputs")
         return jsonify({
-            "error": "Missing required features",
-            "missing_count": len(missing_features),
-            "missing_features": missing_features[:10] # Show up to 10 missing features
+            "error": "Missing required input features",
+            "missing_inputs": missing_inputs
         }), 400
 
-    # Validate correct data types and values
-    for f in features:
+    # Validate types
+    for f in EXPECTED_FRONTEND_INPUTS:
         val = data[f]
         if not isinstance(val, (int, float)):
-            logger.warning(f"Invalid type for feature '{f}': {type(val)}")
+            logger.warning(f"Invalid type for {f}: {type(val)}")
             return jsonify({"error": f"Invalid type for {f}. Expected number."}), 400
 
-    try:
-        df = pd.DataFrame([data])[features]
+    # 2. Fill default 0 for all 87 features
+    full_data = {f: 0 for f in features}
 
-        # Check for NaNs
+    # 2.1 Override strictly important features with reasonable values (instead of 0)
+    # This prevents the model from penalizing predictions for having 0 lot area or 0 kitchens.
+    REASONABLE_DEFAULTS = {
+        "LotArea": 9000,        # Giá trị diện tích đất trung vị khá phổ biến
+        "OverallCond": 5,       # Tình trạng trung bình (thang 1-10)
+        "LotFrontage": 60,      # Mặt tiền trung bình
+        "BedroomAbvGr": 3,      # Đa số nhà có 3 phòng ngủ
+        "KitchenAbvGr": 1,      # Thường có 1 nhà bếp
+        "MoSold": 6,            # Bán vào tháng 6 (mùa trao đổi nhà cao điểm)
+        "YrSold": 2010          # Năm Dataset kết thúc
+    }
+    for f, val in REASONABLE_DEFAULTS.items():
+        if f in full_data:
+            full_data[f] = val
+
+    # 3. Apply the 11 values from frontend
+    for f in EXPECTED_FRONTEND_INPUTS:
+        if f in full_data:  # Safe assignment, ensuring only features model knows
+            full_data[f] = data[f]
+
+    # 4. Feature Engineering (must match what model expects)
+    yr_sold = REASONABLE_DEFAULTS["YrSold"]
+
+    if 'TotalSF' in full_data:
+        full_data['TotalSF'] = data.get('TotalBsmtSF', 0) + data.get('1stFlrSF', 0) + data.get('2ndFlrSF', 0)
+    if 'TotalBath' in full_data:
+        full_data['TotalBath'] = data.get('FullBath', 0) 
+    if 'HouseAge' in full_data:
+        full_data['HouseAge'] = yr_sold - data.get('YearBuilt', 0)
+    if 'RemodelAge' in full_data:
+        full_data['RemodelAge'] = yr_sold - data.get('YearRemodAdd', 0)
+    if 'WasRemodeled' in full_data:
+        full_data['WasRemodeled'] = 1 if data.get('YearRemodAdd') != data.get('YearBuilt') else 0
+    if 'IsNew' in full_data:
+        full_data['IsNew'] = 1 if (yr_sold - data.get('YearBuilt', 0)) <= 1 else 0
+    if 'HasGarage' in full_data:
+        full_data['HasGarage'] = 1 if data.get('GarageArea', 0) > 0 else 0
+    if 'HasBasement' in full_data:
+        full_data['HasBasement'] = 1 if data.get('TotalBsmtSF', 0) > 0 else 0
+    if 'HasPool' in full_data:
+        full_data['HasPool'] = 0
+
+    try:
+        # 5. Extract DataFrame with exactly 87 columns in correct order
+        df = pd.DataFrame([full_data])[features]
+
+        # Check for NaNs (should not happen with default 0, but safe)
         if df.isnull().values.any():
-            logger.warning("Request contains null/NaN values")
-            return jsonify({"error": "Input data contains null values. Please provide valid numbers."}), 400
+            return jsonify({"error": "Unexpected null values in structured data"}), 500
 
         # Ensemble: 50% XGBoost + 50% LightGBM
         xgb_pred = xgb_model.predict(df)
@@ -81,7 +131,7 @@ def predict():
 
         logger.info(f"Prediction successful: ${price:,.2f}")
 
-        # 4. Output format (Đẹp)
+        # Output format (Đẹp)
         return jsonify({
             "success": True,
             "data": {
