@@ -1,0 +1,49 @@
+.input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  
+  .input-label {
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: var(--bg-dark); /* Để cắt ngang viền kính */
+    padding: 0 6px;
+    border-radius: 4px;
+    z-index: 10;
+    transition: all 0.3s ease;
+  }
+  
+  .input-field {
+    width: 100%;
+    padding: 1rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+  
+  .input-field:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 1px var(--accent-cyan);
+    background: rgba(0, 0, 0, 0.4);
+  }
+  
+  .input-field:focus + .input-label {
+    color: var(--accent-cyan);
+  }
+  
+  .error-text {
+    font-size: 0.8rem;
+    color: #ff4b4b;
+    position: absolute;
+    bottom: -20px;
+    left: 4px;
+    animation: fadeIn 0.3s ease-out;
+  }
