@@ -93,5 +93,5 @@ class TestPredictEndpoint:
         assert res.status_code == 400
 
     def test_predict_no_body_returns_400(self, client):
-        res = client.post("/predict")
+        res = client.post("/predict", json={})
         assert res.status_code == 400
