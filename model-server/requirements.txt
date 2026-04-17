@@ -1,0 +1,8 @@
+flask==3.0.3
+Flask-Cors==4.0.0
+joblib==1.4.2
+numpy==1.26.4
+pandas==2.2.2
+xgboost==2.0.3
+lightgbm==4.3.0
+gunicorn==22.0.0
