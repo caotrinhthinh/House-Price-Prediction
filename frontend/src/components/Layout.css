@@ -1,0 +1,53 @@
+.layout-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .app-header {
+    margin-bottom: 3rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: fadeIn 0.8s ease-out;
+  }
+  
+  .logo-icon {
+    color: var(--accent-cyan);
+    filter: drop-shadow(0 0 10px var(--accent-cyan-glow));
+  }
+  
+  .app-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .main-content {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2rem;
+    flex: 1;
+  }
+  
+  @media (max-width: 1024px) {
+    .main-content {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .footer {
+    margin-top: 4rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    opacity: 0.7;
+  }
