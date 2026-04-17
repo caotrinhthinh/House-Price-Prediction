@@ -7,3 +7,5 @@ xgboost==2.0.3
 lightgbm==4.3.0
 gunicorn==22.0.0
 scikit-learn
+pytest
+pytest-flask
