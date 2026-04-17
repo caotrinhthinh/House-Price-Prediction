@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PredictionHistory {
+  id             Int      @id @default(autoincrement())
+  OverallQual    Int
+  YearBuilt      Int
+  YearRemodAdd   Int
+  TotalBsmtSF    Float
+  firstFlrSF     Float    @map("1stFlrSF")  
+  secondFlrSF    Float    @map("2ndFlrSF")
+  GrLivArea      Float
+  FullBath       Int
+  TotRmsAbvGrd   Int
+  GarageCars     Int
+  GarageArea     Float
+  predictedPrice Float
+  createdAt      DateTime @default(now())
+
+  @@map("prediction_history")
+}
