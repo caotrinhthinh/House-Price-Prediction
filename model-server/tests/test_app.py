@@ -2,9 +2,10 @@ import pytest
 import joblib
 import numpy as np
 from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
 os.environ["TESTING"] = "true"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # ─── Mock PKL files trước khi import app để CI không cần file .pkl thật ─────
 @pytest.fixture(scope="session", autouse=True)

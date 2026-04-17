@@ -67,3 +67,4 @@ jobs:
         run: pytest tests/ -v
         env:
           TESTING: "true"
+          PYTHONPATH: "."
