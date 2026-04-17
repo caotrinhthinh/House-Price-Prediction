@@ -18,18 +18,25 @@ app = Flask(__name__)
 # 2. Config CORS
 CORS(app)
 
-# Load models on startup
+# Lazy model loading (BEST PRACTICE)
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
+models = None
 
-logger.info(f"Loading models from {MODEL_DIR}...")
-try:
-    xgb_model  = joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl"))
-    lgb_model  = joblib.load(os.path.join(MODEL_DIR, "lightgbm_model.pkl"))
-    features   = joblib.load(os.path.join(MODEL_DIR, "feature_names.pkl"))
-    logger.info(f"Successfully loaded models! Expected features count: {len(features)}")
-except Exception as e:
-    logger.error(f"Error loading models: {e}")
-    raise e
+def load_models():
+    global models
+    if models is None:
+        logger.info(f"Loading models from {MODEL_DIR}...")
+        try:
+            models = {
+                "xgb": joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl")),
+                "lgb": joblib.load(os.path.join(MODEL_DIR, "lightgbm_model.pkl")),
+                "features": joblib.load(os.path.join(MODEL_DIR, "feature_names.pkl"))
+            }
+            logger.info(f"Successfully loaded models! Expected features count: {len(models['features'])}")
+        except Exception as e:
+            logger.error(f"Error loading models: {e}")
+            raise e
+    return models
 
 
 @app.get("/health")
@@ -45,6 +52,11 @@ EXPECTED_FRONTEND_INPUTS = [
 
 @app.post("/predict")
 def predict():
+    try:
+        loaded_models = load_models()
+    except Exception as e:
+        return jsonify({"error": "Models are not loaded on the server"}), 500
+
     data = request.get_json()
     if not data:
         logger.warning("Received empty or invalid JSON request body")
@@ -70,7 +82,7 @@ def predict():
         return jsonify({"error": "OverallQual must be 1-10"}), 400
 
     # 2. Fill default 0 for all 87 features
-    full_data = {f: 0 for f in features}
+    full_data = {f: 0 for f in loaded_models["features"]}
 
     # 2.1 Override strictly important features with reasonable values (instead of 0)
     # This prevents the model from penalizing predictions for having 0 lot area or 0 kitchens.
@@ -118,15 +130,15 @@ def predict():
 
     try:
         # 5. Extract DataFrame with exactly 87 columns in correct order
-        df = pd.DataFrame([full_data])[features]
+        df = pd.DataFrame([full_data])[loaded_models["features"]]
 
         # Check for NaNs (should not happen with default 0, but safe)
         if df.isnull().values.any():
             return jsonify({"error": "Unexpected null values in structured data"}), 500
 
         # Ensemble: 50% XGBoost + 50% LightGBM
-        xgb_pred = xgb_model.predict(df)
-        lgb_pred = lgb_model.predict(df)
+        xgb_pred = loaded_models["xgb"].predict(df)
+        lgb_pred = loaded_models["lgb"].predict(df)
         pred_log = 0.5 * xgb_pred + 0.5 * lgb_pred
 
         # Dataset uses log1p target — inverse transform

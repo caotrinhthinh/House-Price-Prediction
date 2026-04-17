@@ -4,12 +4,14 @@ import numpy as np
 from unittest.mock import MagicMock, patch
 import sys
 import os
+os.environ["TESTING"] = "true"
 
 # ─── Mock PKL files trước khi import app để CI không cần file .pkl thật ─────
-# Tạo mock models với predict() method để unittest chạy được mà không cần file model
 @pytest.fixture(scope="session", autouse=True)
 def mock_models():
-    """Mock joblib.load để trả về fake models, tránh cần file .pkl thật trong CI."""
+    """Tạo mock models để app.py không gọi joblib.load file thật."""
+    import app as flask_app
+    
     mock_xgb = MagicMock()
     mock_xgb.predict.return_value = np.array([12.25])  # log(price) ~ $208,500
 
@@ -18,12 +20,13 @@ def mock_models():
 
     mock_features = [f"feature_{i}" for i in range(88)]
 
-    with patch("joblib.load", side_effect=[mock_xgb, mock_lgb, mock_features]):
-        import app as flask_app
-        flask_app.xgb_model = mock_xgb
-        flask_app.lgb_model = mock_lgb
-        flask_app.features = mock_features
-        yield flask_app
+    # Tiêm mock trực tiếp vào biến global models của app.py
+    flask_app.models = {
+        "xgb": mock_xgb,
+        "lgb": mock_lgb,
+        "features": mock_features
+    }
+    yield flask_app
 
 
 @pytest.fixture

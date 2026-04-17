@@ -65,3 +65,5 @@ jobs:
       - name: Run Python tests
         working-directory: model-server
         run: pytest tests/ -v
+        env:
+          TESTING: "true"
